@@ -18,31 +18,45 @@ class RoleController extends Controller
 
     public function create()
     {
-        return view('backend.roles.create');
+        $permissions = Permission::all();
+        return view('backend.roles.create',compact('permissions'));
     }
 
     public function store(Request $request)
     {
-      
-        $validator = Validator::make($request->all(),[
+        
+        $validator = Validator::make($request->all(), [
             'name' => 'required|unique:roles,name',
-             'description' => 'nullable|string',
+            'description' => 'nullable|string',
+            'permissions' => 'array', 
+            'permissions.*' => 'exists:permissions,id', 
         ]);
+    
         if ($validator->fails()) {
-            Toastr::error('Fill all field', 'Error');
-            return back()
-                ->withInput()  
-                ->withErrors($validator) 
-                ->with('modal', 'addroleModal'); 
+            Toastr::error('Fill all fields', 'Error');
+            return back()->withInput()->withErrors($validator);
         }
-        $validated = $validator->validate();
-        try{
-            Role::create($validated);
-        }catch(Exception $e){
-            Toastr::success('Category Updated', 'Success');
+    
+        $validated = $validator->validated();
+    
+        try {
+            // Create the role
+            $role = Role::create([
+                'name' => $validated['name'],
+                'description' => $validated['description'] ?? null,
+            ]);
+    
+            // Attach permissions if any are selected
+            if (!empty($validated['permissions'])) {
+                $role->permissions()->attach($validated['permissions']);
+            }
+    
+            Toastr::success('Role created successfully!', 'Success');
+        } catch (Exception $e) {
+            Toastr::error('An error occurred while creating the role', 'Error');
             return back();
         }
-
+    
         return redirect()->route('backend.roles.index')->with('success', 'Role created successfully!');
     }
 
@@ -54,18 +68,38 @@ class RoleController extends Controller
 
     public function update(Request $request, Role $role)
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'name' => 'required|unique:roles,name,' . $role->id,
             'description' => 'nullable|string',
+            'permissions' => 'array',
+            'permissions.*' => 'exists:permissions,id',
         ]);
 
-        $role->update([
-            'name' => $request->name,
-            'description' => $request->description,
-        ]);
+        if ($validator->fails()) {
+            Toastr::error('Fill all fields', 'Error');
+            return back()->withInput()->withErrors($validator);
+        }
+
+        $validated = $validator->validated();
+
+        try {
+            $role->update([
+                'name' => $validated['name'],
+                'description' => $validated['description'] ?? null,
+            ]);
+
+            // Sync permissions to update existing ones
+            $role->permissions()->sync($validated['permissions'] ?? []);
+
+            Toastr::success('Role updated successfully!', 'Success');
+        } catch (Exception $e) {
+            Toastr::error('An error occurred while updating the role', 'Error');
+            return back();
+        }
 
         return redirect()->route('backend.roles.index')->with('success', 'Role updated successfully!');
     }
+
 
     public function destroy(Role $role)
     {
