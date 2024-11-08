@@ -1,0 +1,15 @@
+.m_top {
+    margin-top: 55px;
+}
+label {
+    font-weight: bold;
+}
+.left-border {
+    border-left: 15px solid #f8f8fb;
+}
+.container.dashboard_padding {
+    padding-top: 40px;
+}
+.section_background {
+    padding-top: 40px;
+}
